@@ -1,1 +1,3 @@
-ECHO is on.
+from fastapi import APIRouter
+
+router = APIRouter()
