@@ -20,10 +20,11 @@ def _is_private_or_reserved(ip: str) -> bool:
 EXTERNAL_GEOIP_URL = os.getenv("EXTERNAL_GEOIP_URL", "http://ip-api.com/json")
 
 async def fetch_coords_for_ip(ip: str) -> tuple[float, float]:
-    url = f"{EXTERNAL_GEOIP_URL}/{ip}"
-
     if _is_private_or_reserved(ip):
         raise ValueError("Private/Local IP is not supported for GeoIP lookup")
+
+    url = f"{EXTERNAL_GEOIP_URL}/{ip}"
+
 
 
     async with httpx.AsyncClient(timeout=10) as client:
