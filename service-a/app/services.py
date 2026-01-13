@@ -44,3 +44,13 @@ async def fetch_coords_for_ip(ip: str) -> tuple[float, float]:
         raise RuntimeError("Missing coordinates in external response")
 
     return float(lat), float(lon)
+
+
+
+SERVICE_B_URL = os.getenv("SERVICE_B_URL", "http://service-b:8000")
+
+async def forward_to_service_b(lat: float, lon: float) -> None:
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.post(f"{SERVICE_B_URL}/coordinates", json={"lat": lat, "lon": lon})
+    if r.status_code >= 400:
+        raise RuntimeError(f"Service B returned {r.status_code}: {r.text}")
