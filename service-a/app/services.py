@@ -1,1 +1,1 @@
-ECHO is on.
+# Will be implemented in the next cards
