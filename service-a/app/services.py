@@ -1,56 +1,56 @@
 import os
-import httpx
 import ipaddress
+import httpx
 
-def _is_private_or_reserved(ip: str) -> bool:
+EXTERNAL_GEOIP_URL = os.getenv("EXTERNAL_GEOIP_URL", "http://ip-api.com/json").rstrip("/")
+SERVICE_B_URL = os.getenv("SERVICE_B_URL", "http://service-b:8000").rstrip("/")
+
+
+def _validate_public_ip(ip: str) -> None:
     try:
         addr = ipaddress.ip_address(ip)
-        return (
-            addr.is_private
-            or addr.is_loopback
-            or addr.is_link_local
-            or addr.is_multicast
-            or addr.is_reserved
-        )
-    except ValueError:
-        return True
+    except ValueError as e:
+        raise ValueError("Invalid IP address format") from e
 
+    if (
+        addr.is_private
+        or addr.is_loopback
+        or addr.is_link_local
+        or addr.is_multicast
+        or addr.is_reserved
+    ):
+        raise ValueError("IP address must be a public (non-private) IP")
 
-
-EXTERNAL_GEOIP_URL = os.getenv("EXTERNAL_GEOIP_URL", "http://ip-api.com/json")
 
 async def fetch_coords_for_ip(ip: str) -> tuple[float, float]:
-    if _is_private_or_reserved(ip):
-        raise ValueError("Private/Local IP is not supported for GeoIP lookup")
+    _validate_public_ip(ip)
 
     url = f"{EXTERNAL_GEOIP_URL}/{ip}"
-
-
-
     async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(url)
+        r = await client.get(url)
 
-    if resp.status_code != 200:
-        raise RuntimeError(f"External API returned {resp.status_code}")
+    if r.status_code >= 400:
+        raise RuntimeError(f"External GeoIP API returned {r.status_code}: {r.text}")
 
-    data = resp.json()
+    data = r.json()
 
-    if data.get("status") == "fail":
-        raise ValueError("Invalid IP or resolution failed")
+    if isinstance(data, dict) and data.get("status") == "fail":
+        msg = data.get("message") or "External GeoIP API failed"
+        raise RuntimeError(msg)
 
-    lat = data.get("lat")
-    lon = data.get("lon")
+    lat = data.get("lat") if isinstance(data, dict) else None
+    lon = data.get("lon") if isinstance(data, dict) else None
+
     if lat is None or lon is None:
         raise RuntimeError("Missing coordinates in external response")
 
     return float(lat), float(lon)
 
 
-
-SERVICE_B_URL = os.getenv("SERVICE_B_URL", "http://service-b:8000")
-
-async def forward_to_service_b(lat: float, lon: float) -> None:
+async def forward_to_service_b(ip: str, lat: float, lon: float) -> None:
+    payload = {"ip": ip, "lat": lat, "lon": lon}
     async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.post(f"{SERVICE_B_URL}/coordinates", json={"lat": lat, "lon": lon})
+        r = await client.post(f"{SERVICE_B_URL}/coordinates", json=payload)
+
     if r.status_code >= 400:
         raise RuntimeError(f"Service B returned {r.status_code}: {r.text}")

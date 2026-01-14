@@ -1,9 +1,13 @@
 from typing import List
-from fastapi import APIRouter, HTTPException 
+from fastapi import APIRouter, HTTPException
 from schemas import CoordinateData
 from storage import save_coordinate, get_all_coordinates
 
 router = APIRouter()
+
+@router.get("/health")
+def health():
+    return {"status": "ok"}
 
 @router.post("/coordinates")
 def store_coordinates(data: CoordinateData):
@@ -12,11 +16,10 @@ def store_coordinates(data: CoordinateData):
         return {"message": "Coordinates stored successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 @router.get("/coordinates", response_model=List[CoordinateData])
 def list_coordinates():
     try:
         return get_all_coordinates()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    

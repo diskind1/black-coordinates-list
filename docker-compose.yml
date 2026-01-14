@@ -1,32 +1,16 @@
 services:
   redis:
     image: redis:7-alpine
-    container_name: ipcoords-redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     command: ["redis-server", "--appendonly", "yes"]
 
-  service-a:
-    build:
-      context: ./service-a
-      dockerfile: app/Dockerfile
-    container_name: ipcoords-service-a
-    depends_on:
-      - redis
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-
-    ports:
-      - "8001:8000"
-
   service-b:
     build:
       context: ./service-b
       dockerfile: app/Dockerfile
-    container_name: ipcoords-service-b
     depends_on:
       - redis
     environment:
@@ -34,6 +18,18 @@ services:
       - REDIS_PORT=6379
     ports:
       - "8002:8000"
+
+  service-a:
+    build:
+      context: ./service-a
+      dockerfile: app/Dockerfile
+    depends_on:
+      - service-b
+    environment:
+      - SERVICE_B_URL=http://service-b:8000
+      - EXTERNAL_GEOIP_URL=http://ip-api.com/json
+    ports:
+      - "8001:8000"
 
 volumes:
   redis_data:
