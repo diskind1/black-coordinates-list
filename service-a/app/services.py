@@ -1,56 +1,36 @@
 import os
-import httpx
-import ipaddress
-
-def _is_private_or_reserved(ip: str) -> bool:
-    try:
-        addr = ipaddress.ip_address(ip)
-        return (
-            addr.is_private
-            or addr.is_loopback
-            or addr.is_link_local
-            or addr.is_multicast
-            or addr.is_reserved
-        )
-    except ValueError:
-        return True
-
+import requests
+from schemas import CoordinatesPayload
 
 
 EXTERNAL_GEOIP_URL = os.getenv("EXTERNAL_GEOIP_URL", "http://ip-api.com/json")
 
-async def fetch_coords_for_ip(ip: str) -> tuple[float, float]:
-    if _is_private_or_reserved(ip):
-        raise ValueError("Private/Local IP is not supported for GeoIP lookup")
 
-    url = f"{EXTERNAL_GEOIP_URL}/{ip}"
+def get_location_from_external(ip: str):
+    try:
+        response = requests.get(f"{EXTERNAL_GEOIP_URL}/{ip}")
 
-
-
-    async with httpx.AsyncClient(timeout=10) as client:
-        resp = await client.get(url)
-
-    if resp.status_code != 200:
-        raise RuntimeError(f"External API returned {resp.status_code}")
-
-    data = resp.json()
-
-    if data.get("status") == "fail":
-        raise ValueError("Invalid IP or resolution failed")
-
-    lat = data.get("lat")
-    lon = data.get("lon")
-    if lat is None or lon is None:
-        raise RuntimeError("Missing coordinates in external response")
-
-    return float(lat), float(lon)
+        response.raise_for_status()
+        data = response.json()
+        if data.get("status") == "fail":
+            raise ValueError("Invalid IP or private network")
+        return data.get("lat"), data.get("lon")
+    except Exception as e:
+        print(f"Error fetching IP location: {e}")
+        raise e
+    
 
 
+SERVICE_B_URL = os.getenv("SERVICE_B_URL", "http://localhost:8002")
 
-SERVICE_B_URL = os.getenv("SERVICE_B_URL", "http://service-b:8000")
+def send_to_storage(data: CoordinatesPayload):
+    try:
+        endpoint = f"{SERVICE_B_URL}/coordinates"
+        response = requests.post(endpoint, json=data.model_dump())
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        print(f"Error sending to Service B: {e}")
+        raise e
+    
 
-async def forward_to_service_b(lat: float, lon: float) -> None:
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.post(f"{SERVICE_B_URL}/coordinates", json={"lat": lat, "lon": lon})
-    if r.status_code >= 400:
-        raise RuntimeError(f"Service B returned {r.status_code}: {r.text}")

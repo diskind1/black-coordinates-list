@@ -8,20 +8,6 @@ services:
       - redis_data:/data
     command: ["redis-server", "--appendonly", "yes"]
 
-  service-a:
-    build:
-      context: ./service-a
-      dockerfile: app/Dockerfile
-    container_name: ipcoords-service-a
-    depends_on:
-      - redis
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-
-    ports:
-      - "8001:8000"
-
   service-b:
     build:
       context: ./service-b
@@ -34,6 +20,21 @@ services:
       - REDIS_PORT=6379
     ports:
       - "8002:8000"
+
+  service-a:
+    build:
+      context: ./service-a
+      dockerfile: app/Dockerfile
+    container_name: ipcoords-service-a
+    depends_on:
+      - redis
+      - service-b
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVICE_B_URL=http://service-b:8000
+    ports:
+      - "8001:8000"
 
 volumes:
   redis_data:

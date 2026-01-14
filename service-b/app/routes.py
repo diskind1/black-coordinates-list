@@ -5,6 +5,11 @@ from storage import save_coordinate, get_all_coordinates
 
 router = APIRouter()
 
+@router.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @router.post("/coordinates")
 def store_coordinates(data: CoordinateData):
     try:
@@ -20,3 +25,10 @@ def list_coordinates():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
+
+
+
+
+
+
+
