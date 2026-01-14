@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-demo
+  labels:
+    app: nginx-demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx-demo
+  template:
+    metadata:
+      labels:
+        app: nginx-demo
+    spec:
+      containers:
+      - name: nginx
+        # Using the unprivileged version to avoid permission errors
+        image: nginxinc/nginx-unprivileged:latest
+        ports:
+        - containerPort: 8080
