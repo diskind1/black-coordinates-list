@@ -13,8 +13,8 @@ def health():
 async def resolve_ip(body: ResolveIpRequest):
     try:
         lat, lon = await fetch_coords_for_ip(body.ip)
-        await forward_to_service_b(lat, lon)
-        return CoordinatesPayload(lat=lat, lon=lon)
+        await forward_to_service_b(body.ip, lat, lon)
+        return CoordinatesPayload(ip=body.ip, lat=lat, lon=lon)
         
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

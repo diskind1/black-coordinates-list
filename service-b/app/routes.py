@@ -1,11 +1,11 @@
 from typing import List
 from fastapi import APIRouter, HTTPException 
-from schemas import CoordinateData
+from schemas import CoordinateData, ResolveIpRequest
 from storage import save_coordinate, get_all_coordinates
 
 router = APIRouter()
 
-@router.post("/coordinates")
+@router.post("/coordinates", response_model=ResolveIpRequest)
 def store_coordinates(data: CoordinateData):
     try:
         save_coordinate(data)
